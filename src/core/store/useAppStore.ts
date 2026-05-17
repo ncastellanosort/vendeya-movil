@@ -8,7 +8,7 @@ interface AppState {
   isAuthenticated: boolean;
   isRestoringSession: boolean;
   setCredentials: (token: string, user: User) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   setRestoringSession: (v: boolean) => void;
 
   currentOrderId: string | null;
@@ -24,8 +24,8 @@ export const useAppStore = create<AppState>((set) => ({
   setCredentials: (token, user) =>
     set({ token, user, isAuthenticated: true }),
 
-  logout: () => {
-    supabase.auth.signOut();
+  logout: async () => {
+    await supabase.auth.signOut();
     set({ token: null, user: null, isAuthenticated: false, currentOrderId: null });
   },
 

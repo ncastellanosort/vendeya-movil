@@ -3,6 +3,7 @@ import { View, Text, Image, StyleSheet, SafeAreaView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { LoadingButton } from '../components/LoadingButton';
+import { ProcessingOverlay } from '../components/ProcessingOverlay';
 import { useScan } from '../hooks/useScan';
 import { colors } from '../../core/theme/colors';
 
@@ -44,6 +45,7 @@ export function PreviewScreen({ navigation, route }: Props) {
             style={styles.image}
             resizeMode="contain"
           />
+          {isUploading ? <ProcessingOverlay /> : null}
         </View>
 
         {error ? (

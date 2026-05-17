@@ -4,7 +4,6 @@ import { supabase } from '../../core/supabase/supabaseClient';
 
 export function useAppInitialization() {
   const setCredentials = useAppStore((s) => s.setCredentials);
-  const logout = useAppStore((s) => s.logout);
   const setRestoringSession = useAppStore((s) => s.setRestoringSession);
 
   useEffect(() => {
@@ -58,7 +57,13 @@ export function useAppInitialization() {
           break;
 
         case 'SIGNED_OUT':
-          logout();
+          // Sign-out already happened in Supabase — just sync Zustand state
+          useAppStore.setState({
+            token: null,
+            user: null,
+            isAuthenticated: false,
+            currentOrderId: null,
+          });
           break;
       }
     });
