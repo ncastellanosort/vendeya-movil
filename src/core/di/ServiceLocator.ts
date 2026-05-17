@@ -23,4 +23,8 @@ export class ServiceLocator {
   static getAuthRepository(): IAuthRepository {
     return this.authRepository;
   }
+
+  static getScanRepository(): IScanRepository {
+    return this.scanRepository;
+  }
 }

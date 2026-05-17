@@ -16,11 +16,12 @@ import { AuthRepositoryImpl } from './src/data/repositories/AuthRepositoryImpl';
 import { ScanRepositoryImpl } from './src/data/repositories/ScanRepositoryImpl';
 import { AuthRemoteDataSource } from './src/data/datasources/AuthRemoteDataSource';
 import { ScanRemoteDataSource } from './src/data/datasources/ScanRemoteDataSource';
+import { SesionRemoteDataSource } from './src/data/datasources/SesionRemoteDataSource';
 import { AppNavigator } from './src/presentation/navigation/AppNavigator';
 
 ServiceLocator.initialize(
   new AuthRepositoryImpl(new AuthRemoteDataSource()),
-  new ScanRepositoryImpl(new ScanRemoteDataSource()),
+  new ScanRepositoryImpl(new ScanRemoteDataSource(), new SesionRemoteDataSource()),
 );
 
 export default function App() {

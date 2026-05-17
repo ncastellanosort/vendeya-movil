@@ -10,14 +10,12 @@ import {
 } from 'react-native';
 import { LoadingButton } from '../components/LoadingButton';
 import { useAuth } from '../hooks/useAuth';
-import { useAppStore } from '../../core/store/useAppStore';
 import { colors } from '../../core/theme/colors';
 
 export function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, isLoading, error } = useAuth();
-  const setCredentials = useAppStore((s) => s.setCredentials);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) return;
@@ -26,15 +24,6 @@ export function LoginScreen() {
     } catch {
       // Error handled by useAuth
     }
-  };
-
-  const handleMockBypass = () => {
-    setCredentials('mock-token-dev', {
-      id: 'dev-user-1',
-      email: 'dev@vendeya.com',
-      name: 'Desarrollador',
-      rol: 'admin',
-    });
   };
 
   const isFormValid = email.trim().length > 0 && password.trim().length > 0;
@@ -92,20 +81,6 @@ export function LoginScreen() {
             isLoading={isLoading}
             disabled={!isFormValid}
             style={styles.loginButton}
-          />
-
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>o</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <LoadingButton
-            title="Entrar en modo prueba"
-            onPress={handleMockBypass}
-            isLoading={false}
-            variant="secondary"
-            style={styles.mockButton}
           />
         </View>
       </ScrollView>
@@ -189,24 +164,5 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: 24,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.outlineVariant,
-  },
-  dividerText: {
-    fontFamily: 'WorkSans_400Regular',
-    color: colors.outline,
-    marginHorizontal: 12,
-    fontSize: 14,
-  },
-  mockButton: {
-    marginTop: 16,
   },
 });

@@ -1,3 +1,4 @@
 export interface IScanRepository {
-  uploadPhoto(orderId: string, imageUri: string): Promise<void>;
+  createSession(usuarioId: string): Promise<string>;
+  uploadPhoto(sesionId: string, imageUri: string): Promise<void>;
 }

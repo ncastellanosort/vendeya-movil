@@ -1,10 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, Alert } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useAppStore } from '../../core/store/useAppStore';
 import { useScan } from '../hooks/useScan';
-import * as Crypto from 'expo-crypto';
 import { LoadingButton } from '../components/LoadingButton';
 import { colors } from '../../core/theme/colors';
 
@@ -13,12 +12,26 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 export function HomeScreen({ navigation }: Props) {
   const user = useAppStore((s) => s.user);
   const logout = useAppStore((s) => s.logout);
-  const { setCurrentOrderId } = useScan();
+  const { crearSesion, setCurrentOrderId } = useScan();
+  const [isCreating, setIsCreating] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const handleSendPhoto = () => {
-    const orderId = Crypto.randomUUID();
-    setCurrentOrderId(orderId);
-    navigation.navigate('Camera');
+  const handleSendPhoto = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'Usuario no identificado. Vuelve a iniciar sesion.');
+      return;
+    }
+    setError(null);
+    setIsCreating(true);
+    try {
+      await crearSesion();
+      navigation.navigate('Camera');
+    } catch (e: any) {
+      const msg = e.message || 'No se pudo crear la sesion';
+      setError(msg);
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -54,10 +67,16 @@ export function HomeScreen({ navigation }: Props) {
             en tiempo real.
           </Text>
 
+          {error ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
           <LoadingButton
             title="Enviar foto"
             onPress={handleSendPhoto}
-            isLoading={false}
+            isLoading={isCreating}
             style={styles.sendButton}
           />
         </View>
@@ -184,6 +203,21 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     width: '100%',
+  },
+  errorBox: {
+    backgroundColor: colors.errorContainer,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.error,
+    width: '100%',
+  },
+  errorText: {
+    color: colors.onErrorContainer,
+    fontFamily: 'WorkSans_400Regular',
+    fontSize: 13,
+    textAlign: 'center',
   },
   infoRow: {
     flexDirection: 'row',
