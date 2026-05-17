@@ -29,49 +29,63 @@ App.tsx (font loading + DI init) → AppNavigator → Screens
 
 ### Layers
 
-- **`src/core/`** — Cross-cutting: `supabase/supabaseClient` (client with SecureStore adapter), `ApiClient` (axios + auth interceptor reading token from Supabase session), `useAppStore` (Zustand), `ServiceLocator` (manual DI registry), `theme/` (colors + typography tokens).
+- **`src/core/`** — `supabase/supabaseClient` (client with SecureStore session adapter), `ApiClient` (axios + auth interceptor reading token from `supabase.auth.getSession()`), `useAppStore` (Zustand), `ServiceLocator` (manual DI registry), `theme/` (MD3 colors + typography).
 - **`src/domain/`** — Entities (`User` with `id, email, name, rol`), repository interfaces (`IAuthRepository`, `IScanRepository`), use cases (`LoginUseCase`, `SendScanUseCase`). Pure TypeScript, no React/RN imports.
-- **`src/data/`** — Repository implementations (`AuthRepositoryImpl` delegates to Supabase Auth + `usuarios` table, `ScanRepositoryImpl` delegates to remote), data sources (`AuthRemoteDataSource` using `supabase.auth.signInWithPassword`, `ScanRemoteDataSource` with multipart upload), DTOs matching API responses.
-- **`src/presentation/`** — Screens, components, hooks (`useAuth`, `useScan`, `useAppInitialization`), and `AppNavigator` (conditional auth stack).
+- **`src/data/`** — Repository implementations (`AuthRepositoryImpl`, `ScanRepositoryImpl`), data sources (`AuthRemoteDataSource`, `ScanRemoteDataSource`, `SesionRemoteDataSource`), DTOs.
+- **`src/presentation/`** — Screens (5), components (`LoadingButton`, `CameraFrameOverlay`), hooks (`useAuth`, `useScan`, `useAppInitialization`), `AppNavigator` (conditional auth stack).
 
 ### DI initialization
 
-`ServiceLocator.initialize(authRepo, scanRepo)` is called once in `App.tsx` before any component mounts. Use cases are instantiated fresh from the locator each time a hook calls them — they are stateless.
+`ServiceLocator.initialize(authRepo, scanRepo)` is called once in `App.tsx` before any component mounts. `ScanRepositoryImpl` takes two data sources: `ScanRemoteDataSource` + `SesionRemoteDataSource`.
 
 ### State management
 
 `useAppStore` (Zustand) holds:
 - `token`, `user`, `isAuthenticated`, `isRestoringSession` — auth state
-- `currentOrderId` — scan flow tracking (UUID generated on "Enviar foto" tap)
+- `currentOrderId` — the active `sesiones.id`, generated when tapping "Enviar foto"
 
-`isRestoringSession` is `true` by default. `useAppInitialization` checks Supabase session via `supabase.auth.getSession()` and fetches the user profile from `public.usuarios` to restore the authenticated state.
+`isRestoringSession` is `true` by default. `useAppInitialization` calls `supabase.auth.getSession()` and fetches the profile from `public.usuarios` to restore auth state, preventing a login-screen flash.
 
-### Auth & API
+## Auth flow
 
-Supabase Auth handles login (`signInWithPassword`) and session persistence via a custom SecureStore adapter. After login, the user profile is fetched from `public.usuarios` table (columns: `id`, `nombre`, `correo`, `rol`). The Supabase JWT `access_token` is used as the Bearer token for all API calls.
+Supabase Auth (`signInWithPassword`) handles login. Session is persisted via a custom SecureStore adapter in `supabaseClient.ts`. After login, `AuthRemoteDataSource` fetches the user profile from `public.usuarios` — if the row doesn't exist yet, it auto-creates one with `rol = 'operador'`. The Supabase `access_token` is used as the Bearer token for all API calls.
 
-`ApiClient` attaches `Authorization: Bearer <token>` via request interceptor, reading the current session from `supabase.auth.getSession()`. On 401, it calls `supabase.auth.signOut()`.
+`ApiClient` interceptor reads the token from `supabase.auth.getSession()`. On 401, it calls `supabase.auth.signOut()`. The Zustand `logout()` also signs out from Supabase.
 
-Zustand `logout()` also calls `supabase.auth.signOut()` to clear the Supabase session.
+## Scan flow (session + storage + DB)
 
-### Database — public.usuarios
+When the user taps "Enviar foto" on HomeScreen:
 
-| Column | Type | Notes |
+1. **Create session** — `SesionRemoteDataSource.crearSesion(usuarioId)` inserts into `public.sesiones` (columns: `usuario_id`, `estado = 'activa'`). Returns the session UUID as `order_id`.
+2. **Open camera** — navigates to CameraScreen.
+3. **Capture & preview** — user takes photo, reviews on PreviewScreen.
+4. **Upload** — `ScanRemoteDataSource.uploadPhoto(sesionId, imageUri)`:
+   - Reads file via new `File` API (`new File(uri)` → `.info()` + `.bytes()`)
+   - Uploads binary to Supabase Storage bucket `sesion-imagenes` at `{sesionId}/{uuid}.jpg`
+   - Gets public URL, inserts into `public.imagenes_sesion` (`sesion_id`, `url_imagen`, `nombre_archivo`, `formato`, `peso_kb`)
+   - Fire-and-forget POST to central API `/scan` (multipart/form-data with `order_id` + `image`)
+5. **Success** — navigates to SuccessScreen showing the session ID.
+
+## Database tables
+
+| Table | Key columns | Notes |
 |---|---|---|
-| `id` | uuid | PK, FK → `auth.users.id` ON DELETE CASCADE |
-| `nombre` | varchar(255) | Display name |
-| `correo` | varchar(255) | Unique, email |
-| `rol` | varchar(30) | Default `'operador'` |
-| `activo` | boolean | Default `true` |
-| `created_at` | timestamp | Default `now()` |
+| `public.usuarios` | `id` (PK, FK→auth.users), `nombre`, `correo`, `rol` | Auto-created on first login if missing |
+| `public.sesiones` | `id` (PK), `usuario_id` (FK→usuarios), `estado` | Created when scan flow starts |
+| `public.imagenes_sesion` | `id` (PK), `sesion_id` (FK→sesiones), `url_imagen` | One row per uploaded photo |
 
-### Mock mode for local development
+## Supabase Storage
 
-On the Login screen, "Entrar en modo prueba" sets a fake token (`mock-token-dev`) bypassing the API. `ScanRemoteDataSource` detects this token and returns a mock success after a 1.2s delay instead of hitting `/scan`.
+Bucket: `sesion-imagenes` (public, 10 MB, images only). RLS policies in `supabase-setup.sql`. Use the new `File` API from `expo-file-system` — never the deprecated `FileSystem.getInfoAsync`/`readAsStringAsync`.
+
+```typescript
+import { File } from 'expo-file-system';
+const file = new File(uri);
+const { size } = await file.info();
+const bytes = await file.bytes();
+```
 
 ## Navigation
-
-React Navigation native-stack with conditional rendering based on `isAuthenticated`:
 
 ```
 Login → Home → Camera → Preview → Success → (reset) → Home
@@ -80,14 +94,18 @@ Login → Home → Camera → Preview → Success → (reset) → Home
 ```
 
 - Camera uses `slide_from_bottom` animation.
-- Success sets `gestureEnabled: false` and calls `navigation.reset()` to prevent back-navigation to Preview.
-- `CameraScreen` clears `currentOrderId` on back/close.
+- Success sets `gestureEnabled: false` and calls `navigation.reset()` to prevent back-navigation.
+- CameraScreen clears `currentOrderId` on close/back.
+
+## Camera
+
+`CameraView` from `expo-camera` with `selectedLens` (iOS native lens switching) and `zoom` (Android fallback). Lens selector pills (x0.5, x1, x2) are rendered as an overlay. On mount, calls `getAvailableLensesAsync()` via type assertion to detect multi-lens hardware.
 
 ## Theme
 
-Colors from `src/core/theme/colors.ts` — Material Design 3 tokens with red primary (`#af101a`), orange secondary (`#ff8f00`), teal tertiary (`#00799c`), and light blue surface (`#f4faff` background).
+Colors from `src/core/theme/colors.ts` — Material Design 3: red primary (`#af101a`), orange secondary (`#ff8f00`), teal tertiary (`#00799c`), surface background (`#f4faff`).
 
-Fonts loaded in `App.tsx` via `expo-font` + `@expo-google-fonts/archivo-narrow` (headlines) and `@expo-google-fonts/work-sans` (body/labels). Fonts must finish loading before the navigator renders.
+Fonts: `ArchivoNarrow_700Bold` (headlines) + `WorkSans_400Regular/600SemiBold/700Bold` (body). Loaded in `App.tsx` via `useFonts`; navigator renders only after fonts are ready.
 
 ## Key conventions
 
@@ -95,4 +113,4 @@ Fonts loaded in `App.tsx` via `expo-font` + `@expo-google-fonts/archivo-narrow` 
 - Repository interfaces define contracts in Domain; Data implements them.
 - Remote data sources return DTOs; repository implementations map them to domain entities.
 - Screens receive typed props via `NativeStackScreenProps<RootStackParamList, 'ScreenName'>`.
-- The `/scan` endpoint expects `multipart/form-data` with fields `order_id` (string UUID) and `image` (JPEG file).
+- New expo-file-system API only: `File` class, never the deprecated `FileSystem.*Async` functions.
