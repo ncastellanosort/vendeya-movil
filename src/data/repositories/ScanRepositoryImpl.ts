@@ -15,4 +15,8 @@ export class ScanRepositoryImpl implements IScanRepository {
   async uploadPhoto(sesionId: string, imageUri: string): Promise<void> {
     await this.scanDataSource.uploadPhoto(sesionId, imageUri);
   }
+
+  async getSessionStatus(sesionId: string): Promise<string> {
+    return this.sesionDataSource.consultarEstado(sesionId);
+  }
 }

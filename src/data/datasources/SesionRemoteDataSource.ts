@@ -14,4 +14,15 @@ export class SesionRemoteDataSource {
     if (error) throw new Error(error.message);
     return data.id;
   }
+
+  async consultarEstado(sesionId: string): Promise<string> {
+    const { data, error } = await supabase
+      .from('sesiones')
+      .select('estado')
+      .eq('id', sesionId)
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data.estado;
+  }
 }

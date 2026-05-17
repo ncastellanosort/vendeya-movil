@@ -3,6 +3,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAppStore } from '../../core/store/useAppStore';
 import { useAppInitialization } from '../hooks/useAppInitialization';
+import { useSessionPolling } from '../hooks/useSessionPolling';
 import { colors } from '../../core/theme/colors';
 import { LoginScreen } from '../screens/LoginScreen';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -22,6 +23,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function AppNavigator() {
   useAppInitialization();
+  useSessionPolling();
 
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const isRestoringSession = useAppStore((s) => s.isRestoringSession);
