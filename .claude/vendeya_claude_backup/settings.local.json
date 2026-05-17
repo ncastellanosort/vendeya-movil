@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npx --version)",
+      "Bash(npx create-expo-app *)",
+      "Bash(npm view *)",
+      "Bash(npx create-expo-app@latest *)",
+      "Bash(mv .claude /tmp/vendeya_claude_backup)",
+      "Bash(mv /tmp/vendeya_claude_backup .claude)"
+    ]
+  }
+}

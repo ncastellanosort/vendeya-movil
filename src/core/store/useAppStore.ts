@@ -1,0 +1,33 @@
+import { create } from 'zustand';
+import type { User } from '../../domain/entities/User';
+
+interface AppState {
+  token: string | null;
+  user: User | null;
+  isAuthenticated: boolean;
+  isRestoringSession: boolean;
+  setCredentials: (token: string, user: User) => void;
+  logout: () => void;
+  setRestoringSession: (v: boolean) => void;
+
+  currentOrderId: string | null;
+  setCurrentOrderId: (id: string | null) => void;
+}
+
+export const useAppStore = create<AppState>((set) => ({
+  token: null,
+  user: null,
+  isAuthenticated: false,
+  isRestoringSession: true,
+
+  setCredentials: (token, user) =>
+    set({ token, user, isAuthenticated: true }),
+
+  logout: () =>
+    set({ token: null, user: null, isAuthenticated: false, currentOrderId: null }),
+
+  setRestoringSession: (v) => set({ isRestoringSession: v }),
+
+  currentOrderId: null,
+  setCurrentOrderId: (id) => set({ currentOrderId: id }),
+}));
