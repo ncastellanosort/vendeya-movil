@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useAppStore } from '../../core/store/useAppStore';
-import { ServiceLocator } from '../../core/di/ServiceLocator';
+import { supabase } from '../../core/supabase/supabaseClient';
 
 export function useAppInitialization() {
   const setCredentials = useAppStore((s) => s.setCredentials);
@@ -9,13 +9,26 @@ export function useAppInitialization() {
   useEffect(() => {
     (async () => {
       try {
-        const authRepo = ServiceLocator.getAuthRepository();
-        const token = await authRepo.getToken();
-        if (token) {
-          setCredentials(token, { id: '', email: '', name: '' });
+        const { data } = await supabase.auth.getSession();
+        const session = data.session;
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from('usuarios')
+            .select('id, nombre, correo, rol')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (profile) {
+            setCredentials(session.access_token, {
+              id: profile.id,
+              email: profile.correo,
+              name: profile.nombre,
+              rol: profile.rol,
+            });
+          }
         }
       } catch {
-        // Silently fail; show login screen
+        // No active session — show login
       } finally {
         setRestoringSession(false);
       }

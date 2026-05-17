@@ -4,5 +4,6 @@ export interface LoginResponseDto {
     id: string;
     email: string;
     name: string;
+    rol: string;
   };
 }

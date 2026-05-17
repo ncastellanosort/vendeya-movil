@@ -1,5 +1,5 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import { supabase } from '../supabase/supabaseClient';
 import { API_BASE_URL, API_TIMEOUT } from '../constants/api';
 
 const apiClient = axios.create({
@@ -9,7 +9,8 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use(async (config) => {
-  const token = await SecureStore.getItemAsync('auth_token');
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -20,7 +21,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      SecureStore.deleteItemAsync('auth_token');
+      supabase.auth.signOut();
     }
     return Promise.reject(error);
   },

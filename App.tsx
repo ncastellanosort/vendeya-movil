@@ -1,10 +1,7 @@
-import { useState, useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
-import * as SecureStore from 'expo-secure-store';
-import * as Font from 'expo-font';
 import {
   useFonts,
   ArchivoNarrow_700Bold,
@@ -21,14 +18,8 @@ import { AuthRemoteDataSource } from './src/data/datasources/AuthRemoteDataSourc
 import { ScanRemoteDataSource } from './src/data/datasources/ScanRemoteDataSource';
 import { AppNavigator } from './src/presentation/navigation/AppNavigator';
 
-const secureStore = {
-  get: SecureStore.getItemAsync,
-  set: SecureStore.setItemAsync,
-  del: SecureStore.deleteItemAsync,
-};
-
 ServiceLocator.initialize(
-  new AuthRepositoryImpl(new AuthRemoteDataSource(), secureStore),
+  new AuthRepositoryImpl(new AuthRemoteDataSource()),
   new ScanRepositoryImpl(new ScanRemoteDataSource()),
 );
 

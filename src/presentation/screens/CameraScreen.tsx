@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,10 +16,64 @@ import { colors } from '../../core/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Camera'>;
 
+interface LensOption {
+  key: string;
+  label: string;
+  zoom?: number;
+}
+
+const FALLBACK_LENSES: LensOption[] = [
+  { key: 'ultrawide', label: 'x0.5', zoom: 0 },
+  { key: 'wide', label: 'x1', zoom: 0.5 },
+  { key: 'telephoto', label: 'x2', zoom: 1 },
+];
+
+const LENS_LABEL_MAP: Record<string, string> = {
+  builtInUltraWideCamera: 'x0.5',
+  builtInWideAngleCamera: 'x1',
+  builtInTelephotoCamera: 'x2',
+};
+
+function mapLenses(lenses: string[]): LensOption[] {
+  if (lenses.length <= 1) return [];
+  return lenses.map((l) => ({
+    key: l,
+    label: LENS_LABEL_MAP[l] ?? l.replace('builtIn', '').replace('Camera', ''),
+  }));
+}
+
 export function CameraScreen({ navigation }: Props) {
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const { setCurrentOrderId } = useScan();
+
+  const [zoom, setZoom] = useState(0);
+  const [availableLenses, setAvailableLenses] = useState<LensOption[]>([]);
+  const [selectedLens, setSelectedLens] = useState<string | undefined>(undefined);
+  const [activeLensKey, setActiveLensKey] = useState<string>('wide');
+
+  const lensOptions = availableLenses.length > 0 ? availableLenses : FALLBACK_LENSES;
+
+  // Detect available lenses on mount
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        // Access CameraView instance methods via type assertion
+        const view = cameraRef.current as any;
+        if (view?.getAvailableLensesAsync) {
+          const lenses: string[] = await view.getAvailableLensesAsync();
+          const mapped = mapLenses(lenses);
+          if (mapped.length > 0) {
+            setAvailableLenses(mapped);
+            setActiveLensKey(mapped[1]?.key ?? mapped[0]?.key);
+          }
+        }
+      } catch {
+        // Fallback to digital zoom
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleClose = useCallback(() => {
     setCurrentOrderId(null);
@@ -35,6 +89,15 @@ export function CameraScreen({ navigation }: Props) {
       }
     } catch {
       // Camera capture failed silently; user can retry
+    }
+  };
+
+  const handleLensChange = (option: LensOption) => {
+    setActiveLensKey(option.key);
+    if (availableLenses.length > 0) {
+      setSelectedLens(option.key);
+    } else {
+      setZoom(option.zoom ?? 0);
     }
   };
 
@@ -72,7 +135,13 @@ export function CameraScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <CameraView ref={cameraRef} style={styles.camera} facing="back">
+      <CameraView
+        ref={cameraRef}
+        style={styles.camera}
+        facing="back"
+        zoom={zoom}
+        selectedLens={selectedLens}
+      >
         <CameraFrameOverlay />
 
         {/* Close button */}
@@ -91,6 +160,25 @@ export function CameraScreen({ navigation }: Props) {
           <Text style={styles.hintText}>
             Centra los productos dentro del recuadro
           </Text>
+        </View>
+
+        {/* Lens switcher */}
+        <View style={styles.lensSwitcher}>
+          {lensOptions.map((option) => {
+            const isActive = option.key === activeLensKey;
+            return (
+              <TouchableOpacity
+                key={option.key}
+                style={[styles.lensPill, isActive && styles.lensPillActive]}
+                onPress={() => handleLensChange(option)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.lensText, isActive && styles.lensTextActive]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Capture button */}
@@ -151,6 +239,35 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  lensSwitcher: {
+    position: 'absolute',
+    top: 130,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  lensPill: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    minWidth: 52,
+    alignItems: 'center',
+  },
+  lensPillActive: {
+    backgroundColor: colors.primaryContainer,
+  },
+  lensText: {
+    color: 'rgba(255,255,255,0.75)',
+    fontFamily: 'WorkSans_600SemiBold',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  lensTextActive: {
+    color: '#ffffff',
   },
   captureContainer: {
     position: 'absolute',

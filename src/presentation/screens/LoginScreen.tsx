@@ -33,6 +33,7 @@ export function LoginScreen() {
       id: 'dev-user-1',
       email: 'dev@vendeya.com',
       name: 'Desarrollador',
+      rol: 'admin',
     });
   };
 

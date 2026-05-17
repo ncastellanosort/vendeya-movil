@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { User } from '../../domain/entities/User';
+import { supabase } from '../supabase/supabaseClient';
 
 interface AppState {
   token: string | null;
@@ -23,8 +24,10 @@ export const useAppStore = create<AppState>((set) => ({
   setCredentials: (token, user) =>
     set({ token, user, isAuthenticated: true }),
 
-  logout: () =>
-    set({ token: null, user: null, isAuthenticated: false, currentOrderId: null }),
+  logout: () => {
+    supabase.auth.signOut();
+    set({ token: null, user: null, isAuthenticated: false, currentOrderId: null });
+  },
 
   setRestoringSession: (v) => set({ isRestoringSession: v }),
 

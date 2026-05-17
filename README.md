@@ -13,8 +13,9 @@ Aplicación móvil de reconocimiento inteligente de productos en supermercados m
 | Axios | 1.16 | Cliente HTTP con interceptors |
 | expo-camera | 17 | Captura de fotos |
 | expo-crypto | 15 | Generación de UUID para órdenes |
-| expo-secure-store | 15 | Almacenamiento seguro del token JWT |
+| expo-secure-store | 15 | Persistencia de sesión Supabase |
 | expo-font | 14 | Carga de fuentes Google |
+| Supabase | SDK 2 | Auth + base de datos (usuarios) |
 | Archivo Narrow + Work Sans | — | Tipografía (Google Fonts) |
 
 ## Arquitectura
@@ -29,7 +30,8 @@ App.tsx                     → Entrada: carga fuentes, inicializa DI
 src/
 ├── core/                   # Infraestructura cross-cutting
 │   ├── constants/api.ts    # URL de la API central y timeout
-│   ├── http/ApiClient.ts   # Axios + interceptor de auth + handler 401
+│   ├── http/ApiClient.ts   # Axios + interceptor (token desde Supabase)
+│   ├── supabase/           # Cliente Supabase con SecureStore adapter
 │   ├── store/useAppStore   # Zustand: token, user, orderId
 │   ├── di/ServiceLocator   # Registro manual de dependencias
 │   └── theme/              # Tokens de color (MD3) y tipografía
@@ -76,10 +78,25 @@ image: photo_<uuid>.jpg (JPEG)
 
 ## Configuración
 
+Variables de entorno en `.env`:
+
 ```bash
-# Endpoint de la API central (por defecto localhost)
 EXPO_PUBLIC_API_URL=https://api.vendeya.com/api
+EXPO_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
+EXPO_PUBLIC_SUPABASE_KEY=sb_publishable_...
 ```
+
+## Base de datos
+
+Auth con Supabase Auth (`auth.users`) + perfil en tabla `public.usuarios`:
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| `id` | uuid PK | FK → `auth.users.id` |
+| `nombre` | varchar(255) | Nombre del usuario |
+| `correo` | varchar(255) UNIQUE | Correo electrónico |
+| `rol` | varchar(30) | `'operador'` por defecto |
+| `activo` | boolean | `true` por defecto |
 
 ## Desarrollo
 
