@@ -29,7 +29,7 @@ export function PreviewScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container}>
       {/* Top bar */}
       <View style={styles.topbar}>
-        <Text style={styles.brand}>FreshScan AI</Text>
+        <Text style={styles.brand}>VendeYa</Text>
       </View>
 
       <View style={styles.content}>

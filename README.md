@@ -1,4 +1,4 @@
-# FreshScan AI — App Móvil
+# VendeYa — App Móvil
 
 Aplicación móvil de reconocimiento inteligente de productos en supermercados mediante visión artificial. Parte del ecosistema Vendeya: captura imágenes de múltiples productos, las envía a una API central de orquestación, y el sistema —usando Gemini— identifica cada producto, calcula el total de la compra y muestra los resultados en tiempo real.
 
@@ -113,7 +113,7 @@ El código real de API permanece intacto; solo se activa con credenciales reales
 
 ## Tema visual
 
-Paleta Material Design 3 extraída del diseño FreshScan AI:
+Paleta Material Design 3 del diseño VendeYa:
 
 - **Primary** `#af101a` — Rojo intenso (logo, acentos, botones principales)
 - **Secondary** `#ff8f00` — Naranja (acciones secundarias, call-to-action)

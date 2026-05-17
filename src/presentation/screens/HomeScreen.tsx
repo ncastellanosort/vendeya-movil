@@ -26,7 +26,7 @@ export function HomeScreen({ navigation }: Props) {
       {/* Top bar */}
       <View style={styles.topbar}>
         <View>
-          <Text style={styles.brand}>FreshScan AI</Text>
+          <Text style={styles.brand}>VendeYa</Text>
         </View>
         <View style={styles.userBadge}>
           <View style={styles.avatar}>

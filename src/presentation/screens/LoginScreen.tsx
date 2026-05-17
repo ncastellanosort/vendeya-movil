@@ -48,7 +48,7 @@ export function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.logo}>FreshScan AI</Text>
+          <Text style={styles.logo}>VendeYa</Text>
           <Text style={styles.subtitle}>Reconocimiento inteligente de productos</Text>
         </View>
 
