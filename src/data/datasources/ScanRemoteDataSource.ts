@@ -1,5 +1,4 @@
 import { File } from 'expo-file-system';
-import apiClient from '../../core/http/ApiClient';
 import { supabase } from '../../core/supabase/supabaseClient';
 import type { ScanResponseDto } from '../dtos/ScanResponseDto';
 import * as Crypto from 'expo-crypto';
@@ -45,20 +44,30 @@ export class ScanRemoteDataSource {
 
     if (insertError) throw new Error(`Error al guardar registro: ${insertError.message}`);
 
-    // 5. Notify central API (fire-and-forget style — don't block on failure)
+    // 5. Notify central API
     try {
+      const { data } = await supabase.auth.getSession();
+      const jwtToken = data.session?.access_token;
+
       const formData = new FormData();
-      formData.append('order_id', sesionId);
-      formData.append('image', {
+      formData.append('file', {
         uri: imageUri,
         type: 'image/jpeg',
         name: fileName,
       } as any);
+      formData.append('sesion_id', sesionId);
 
-      await apiClient.post<ScanResponseDto>('/scan', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 60000,
+      const response = await fetch('http://192.168.40.94:8001/scan/', {
+        method: 'POST',
+        headers: jwtToken
+          ? { Authorization: `Bearer ${jwtToken}` }
+          : {},
+        body: formData,
       });
+
+      if (!response.ok) {
+        throw new Error(`API /scan responded with status ${response.status}`);
+      }
     } catch {
       // Central API may be down; image is already saved in Supabase
     }
