@@ -1,5 +1,6 @@
 import { File } from 'expo-file-system';
 import { supabase } from '../../core/supabase/supabaseClient';
+import { SCAN_API_URL } from '../../core/constants/api';
 import type { ScanResponseDto } from '../dtos/ScanResponseDto';
 import * as Crypto from 'expo-crypto';
 
@@ -57,7 +58,7 @@ export class ScanRemoteDataSource {
       } as any);
       formData.append('sesion_id', sesionId);
 
-      const response = await fetch('http://192.168.40.94:8001/scan/', {
+      const response = await fetch(SCAN_API_URL, {
         method: 'POST',
         headers: jwtToken
           ? { Authorization: `Bearer ${jwtToken}` }
