@@ -7,42 +7,11 @@ export function useAppInitialization() {
   const setRestoringSession = useAppStore((s) => s.setRestoringSession);
 
   useEffect(() => {
-    let restored = false;
+    // Always start at Login — no session restoration from SecureStore
+    setRestoringSession(false);
 
-    // 1. Restore session from SecureStore on app start
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const session = data.session;
-        if (session?.user) {
-          const { data: profile } = await supabase
-            .from('usuarios')
-            .select('id, nombre, correo, rol')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          if (profile) {
-            setCredentials(session.access_token, {
-              id: profile.id,
-              email: profile.correo,
-              name: profile.nombre,
-              rol: profile.rol,
-            });
-          }
-        }
-      } catch {
-        // No active session — show login
-      } finally {
-        restored = true;
-        setRestoringSession(false);
-      }
-    })();
-
-    // 2. Listen for auth state changes (sign out, token refresh, etc.)
+    // Listen for auth state changes (sign in, sign out, token refresh)
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      // Only react after initial restoration is done to avoid race conditions
-      if (!restored) return;
-
       switch (event) {
         case 'SIGNED_IN':
         case 'TOKEN_REFRESHED':
@@ -57,7 +26,6 @@ export function useAppInitialization() {
           break;
 
         case 'SIGNED_OUT':
-          // Sign-out already happened in Supabase — just sync Zustand state
           useAppStore.setState({
             token: null,
             user: null,

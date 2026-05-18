@@ -19,7 +19,7 @@ export const useAppStore = create<AppState>((set) => ({
   token: null,
   user: null,
   isAuthenticated: false,
-  isRestoringSession: true,
+  isRestoringSession: false,
 
   setCredentials: (token, user) =>
     set({ token, user, isAuthenticated: true }),
