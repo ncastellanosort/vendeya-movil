@@ -2,12 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+AGENTS.md includes this file (`@CLAUDE.md`) — keep both in sync. When writing Expo code, reference the exact versioned docs at https://docs.expo.dev/versions/v54.0.0/.
+
 ## Commands
 
 ```bash
-npx expo start          # Dev server (tunnel: npx expo start --tunnel)
-npx expo start --android
-npx expo start --ios
+npm start               # expo start (dev server)
+npm run android         # expo start --android
+npm run ios             # expo start --ios
+npx expo start --tunnel # tunnel for external devices
 npx tsc --noEmit        # TypeScript check (no build output)
 ```
 
@@ -29,10 +32,10 @@ App.tsx (font loading + DI init) → AppNavigator → Screens
 
 ### Layers
 
-- **`src/core/`** — `supabase/supabaseClient` (client with SecureStore session adapter), `ApiClient` (axios + auth interceptor reading token from `supabase.auth.getSession()`), `useAppStore` (Zustand), `ServiceLocator` (manual DI registry), `theme/` (MD3 colors + typography).
+- **`src/core/`** — `supabase/supabaseClient` (client with SecureStore session adapter), `ApiClient` (axios + auth interceptor reading token from `supabase.auth.getSession()`), `useAppStore` (Zustand), `ServiceLocator` (manual DI registry), `theme/` (MD3 colors + typography), `constants/api` (URLs + timeout).
 - **`src/domain/`** — Entities (`User` with `id, email, name, rol`), repository interfaces (`IAuthRepository`, `IScanRepository`), use cases (`LoginUseCase`, `SendScanUseCase`). Pure TypeScript, no React/RN imports.
 - **`src/data/`** — Repository implementations (`AuthRepositoryImpl`, `ScanRepositoryImpl`), data sources (`AuthRemoteDataSource`, `ScanRemoteDataSource`, `SesionRemoteDataSource`), DTOs.
-- **`src/presentation/`** — Screens (5), components (`LoadingButton`, `CameraFrameOverlay`), hooks (`useAuth`, `useScan`, `useAppInitialization`), `AppNavigator` (conditional auth stack).
+- **`src/presentation/`** — Screens (5), components (`LoadingButton`, `CameraFrameOverlay`, `ProcessingOverlay`), hooks (`useAuth`, `useScan`, `useAppInitialization`, `useSessionPolling`), `AppNavigator` (conditional auth stack).
 
 ### DI initialization
 
@@ -44,13 +47,21 @@ App.tsx (font loading + DI init) → AppNavigator → Screens
 - `token`, `user`, `isAuthenticated`, `isRestoringSession` — auth state
 - `currentOrderId` — the active `sesiones.id`, generated when tapping "Enviar foto"
 
-`isRestoringSession` is `true` by default. `useAppInitialization` calls `supabase.auth.getSession()` and fetches the profile from `public.usuarios` to restore auth state, preventing a login-screen flash.
+`isRestoringSession` is `false` by default (no session restoration — user always lands on Login). `useAppInitialization` immediately sets it to `false` and subscribes to `supabase.auth.onAuthStateChange` to react to sign-in/sign-out/token-refresh events.
+
+### Session polling
+
+`useSessionPolling` runs in `AppNavigator` when `currentOrderId` is set. Every 30s it calls `getSessionStatus()` — if the session is no longer `'activa'`, it forces logout (session expired server-side).
 
 ## Auth flow
 
 Supabase Auth (`signInWithPassword`) handles login. Session is persisted via a custom SecureStore adapter in `supabaseClient.ts`. After login, `AuthRemoteDataSource` fetches the user profile from `public.usuarios` — if the row doesn't exist yet, it auto-creates one with `rol = 'operador'`. The Supabase `access_token` is used as the Bearer token for all API calls.
 
-`ApiClient` interceptor reads the token from `supabase.auth.getSession()`. On 401, it calls `supabase.auth.signOut()`. The Zustand `logout()` also signs out from Supabase.
+`ApiClient` interceptor reads the token from `supabase.auth.getSession()`. On 401, it calls `supabase.auth.signOut()`. The Zustand `logout()` also signs out from Supabase and clears `currentOrderId`.
+
+`useAppInitialization` listens to `onAuthStateChange`:
+- `SIGNED_IN` / `TOKEN_REFRESHED` → sets credentials from session user metadata
+- `SIGNED_OUT` → clears all auth state
 
 ## Scan flow (session + storage + DB)
 
@@ -58,12 +69,12 @@ When the user taps "Enviar foto" on HomeScreen:
 
 1. **Create session** — `SesionRemoteDataSource.crearSesion(usuarioId)` inserts into `public.sesiones` (columns: `usuario_id`, `estado = 'activa'`). Returns the session UUID as `order_id`.
 2. **Open camera** — navigates to CameraScreen.
-3. **Capture & preview** — user takes photo, reviews on PreviewScreen.
+3. **Capture & preview** — user takes photo, reviews on PreviewScreen. `ProcessingOverlay` is shown during upload.
 4. **Upload** — `ScanRemoteDataSource.uploadPhoto(sesionId, imageUri)`:
    - Reads file via new `File` API (`new File(uri)` → `.info()` + `.bytes()`)
    - Uploads binary to Supabase Storage bucket `sesion-imagenes` at `{sesionId}/{uuid}.jpg`
    - Gets public URL, inserts into `public.imagenes_sesion` (`sesion_id`, `url_imagen`, `nombre_archivo`, `formato`, `peso_kb`)
-   - Fire-and-forget POST to central API `/scan` (multipart/form-data with `order_id` + `image`)
+   - Fire-and-forget POST to central API `/scan` using `fetch()` (multipart/form-data with fields `file` + `sesion_id`, JWT Bearer header)
 5. **Success** — navigates to SuccessScreen showing the session ID.
 
 ## Database tables
@@ -85,6 +96,15 @@ const { size } = await file.info();
 const bytes = await file.bytes();
 ```
 
+## Environment variables
+
+Set in `.env` (prefixed with `EXPO_PUBLIC_` for Expo client-side access):
+
+- `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_KEY` — Supabase project credentials
+- `EXPO_PUBLIC_SCAN_API_URL_MIGUEL` — scan endpoint URL (per-developer; currently the one wired in `api.ts`)
+
+The `ApiClient` base URL defaults to `http://localhost:3000/api` (no env var currently set).
+
 ## Navigation
 
 ```
@@ -103,7 +123,7 @@ Login → Home → Camera → Preview → Success → (reset) → Home
 
 ## Theme
 
-Colors from `src/core/theme/colors.ts` — Material Design 3: red primary (`#af101a`), orange secondary (`#ff8f00`), teal tertiary (`#00799c`), surface background (`#f4faff`).
+Colors from `src/core/theme/colors.ts` — Material Design 3: red primary (`#af101a`), brown secondary (`#8f4e00`), orange secondary container (`#ff8f00`), teal tertiary container (`#00799c`), surface background (`#f4faff`).
 
 Fonts: `ArchivoNarrow_700Bold` (headlines) + `WorkSans_400Regular/600SemiBold/700Bold` (body). Loaded in `App.tsx` via `useFonts`; navigator renders only after fonts are ready.
 
@@ -114,3 +134,4 @@ Fonts: `ArchivoNarrow_700Bold` (headlines) + `WorkSans_400Regular/600SemiBold/70
 - Remote data sources return DTOs; repository implementations map them to domain entities.
 - Screens receive typed props via `NativeStackScreenProps<RootStackParamList, 'ScreenName'>`.
 - New expo-file-system API only: `File` class, never the deprecated `FileSystem.*Async` functions.
+- UUID generation uses `Crypto.randomUUID()` from `expo-crypto`, not `expo-crypto`'s `uuid()` function.
