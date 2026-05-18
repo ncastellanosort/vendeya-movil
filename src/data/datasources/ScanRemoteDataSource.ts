@@ -3,6 +3,7 @@ import { supabase } from '../../core/supabase/supabaseClient';
 import { SCAN_API_URL } from '../../core/constants/api';
 import type { ScanResponseDto } from '../dtos/ScanResponseDto';
 import * as Crypto from 'expo-crypto';
+import { ScanRejectedError } from '../../domain/ScanRejectedError';
 
 const STORAGE_BUCKET = 'sesion-imagenes';
 
@@ -66,10 +67,14 @@ export class ScanRemoteDataSource {
         body: formData,
       });
 
+      if (response.status === 400) {
+        throw new ScanRejectedError();
+      }
       if (!response.ok) {
         throw new Error(`API /scan responded with status ${response.status}`);
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof ScanRejectedError) throw error;
       // Central API may be down; image is already saved in Supabase
     }
 

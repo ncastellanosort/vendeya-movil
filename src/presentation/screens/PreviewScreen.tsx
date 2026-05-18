@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, Image, StyleSheet, SafeAreaView, Alert } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { LoadingButton } from '../components/LoadingButton';
 import { ProcessingOverlay } from '../components/ProcessingOverlay';
 import { useScan } from '../hooks/useScan';
 import { colors } from '../../core/theme/colors';
+import { ScanRejectedError } from '../../domain/ScanRejectedError';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Preview'>;
 
@@ -17,8 +18,12 @@ export function PreviewScreen({ navigation, route }: Props) {
     try {
       await uploadPhoto(photoUri);
       navigation.reset({ index: 0, routes: [{ name: 'Success' }] });
-    } catch {
-      // Error handled by useScan
+    } catch (e) {
+      if (e instanceof ScanRejectedError) {
+        Alert.alert('Reprocesar la foto!', 'Vuelve a tomar la foto para procesarla.', [
+          { text: 'Entendido', onPress: () => navigation.goBack() },
+        ]);
+      }
     }
   };
 
