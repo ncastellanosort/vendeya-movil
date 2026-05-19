@@ -67,8 +67,13 @@ export class ScanRemoteDataSource {
         body: formData,
       });
 
-      if (response.status === 400) {
-        throw new ScanRejectedError();
+      if (response.status === 422) {
+        const body = await response.json();
+        const { tipo, mensaje } = body?.detail ?? {};
+        throw new ScanRejectedError(
+          tipo ?? 'DESCONOCIDO',
+          mensaje ?? 'La imagen no pudo ser procesada.',
+        );
       }
       if (!response.ok) {
         throw new Error(`API /scan responded with status ${response.status}`);

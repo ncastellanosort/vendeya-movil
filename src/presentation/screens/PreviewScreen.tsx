@@ -20,7 +20,7 @@ export function PreviewScreen({ navigation, route }: Props) {
       navigation.reset({ index: 0, routes: [{ name: 'Success' }] });
     } catch (e) {
       if (e instanceof ScanRejectedError) {
-        Alert.alert('Reprocesar la foto!', 'Vuelve a tomar la foto para procesarla.', [
+        Alert.alert(e.tipo === 'SIN_PRODUCTOS' ? 'Sin productos' : 'Calidad insuficiente', e.message, [
           { text: 'Entendido', onPress: () => navigation.goBack() },
         ]);
       }

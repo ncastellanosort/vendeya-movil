@@ -1,6 +1,9 @@
 export class ScanRejectedError extends Error {
-  constructor(message = 'La foto no pudo ser procesada') {
-    super(message);
+  tipo: string;
+
+  constructor(tipo: string, mensaje: string) {
+    super(mensaje);
     this.name = 'ScanRejectedError';
+    this.tipo = tipo;
   }
 }
