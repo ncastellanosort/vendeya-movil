@@ -18,12 +18,16 @@ export function useScan() {
   };
 
   const uploadPhoto = async (imageUri: string) => {
-    if (!currentOrderId) throw new Error('No hay una sesion activa');
+    if (!userId) throw new Error('Usuario no autenticado');
     setIsUploading(true);
     setError(null);
     try {
+      const repo = ServiceLocator.getScanRepository();
+      const sesionId = await repo.createSession(userId);
+      setCurrentOrderId(sesionId);
+
       const useCase = ServiceLocator.getSendScanUseCase();
-      await useCase.execute(currentOrderId, imageUri);
+      await useCase.execute(sesionId, imageUri);
     } catch (e: any) {
       const message = e?.response?.data?.message || e.message || 'Error al enviar';
       setError(message);

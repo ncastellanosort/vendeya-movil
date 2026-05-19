@@ -46,6 +46,7 @@ export class ScanRemoteDataSource {
 
     if (insertError) throw new Error(`Error al guardar registro: ${insertError.message}`);
 
+    /*
     // 5. Health check before notifying central API
     try {
       const controller = new AbortController();
@@ -75,6 +76,7 @@ export class ScanRemoteDataSource {
       }
       throw new Error('El servicio de procesamiento no está disponible. Intente de nuevo.');
     }
+    */
 
     // 6. Notify central API
     try {

@@ -67,15 +67,19 @@ Supabase Auth (`signInWithPassword`) handles login. Session is persisted via a c
 
 When the user taps "Enviar foto" on HomeScreen:
 
-1. **Create session** — `SesionRemoteDataSource.crearSesion(usuarioId)` inserts into `public.sesiones` (columns: `usuario_id`, `estado = 'activa'`). Returns the session UUID as `order_id`.
-2. **Open camera** — navigates to CameraScreen.
-3. **Capture & preview** — user takes photo, reviews on PreviewScreen. `ProcessingOverlay` is shown during upload.
-4. **Upload** — `ScanRemoteDataSource.uploadPhoto(sesionId, imageUri)`:
-   - Reads file via new `File` API (`new File(uri)` → `.info()` + `.bytes()`)
-   - Uploads binary to Supabase Storage bucket `sesion-imagenes` at `{sesionId}/{uuid}.jpg`
-   - Gets public URL, inserts into `public.imagenes_sesion` (`sesion_id`, `url_imagen`, `nombre_archivo`, `formato`, `peso_kb`)
-   - Fire-and-forget POST to central API `/scan` using `fetch()` (multipart/form-data with fields `file` + `sesion_id`, JWT Bearer header)
-5. **Success** — navigates to SuccessScreen showing the session ID.
+1. **Open camera** — navigates to CameraScreen.
+2. **Capture & preview** — user takes photo, reviews on PreviewScreen. `ProcessingOverlay` is shown during upload.
+3. **Create session + Upload** — when user taps "Enviar foto" on PreviewScreen, `useScan.uploadPhoto()`:
+   - Creates a new session via `SesionRemoteDataSource.crearSesion(usuarioId)` — inserts into `public.sesiones` (`usuario_id`, `estado = 'activa'`), returns the session UUID
+   - Sets `currentOrderId` in Zustand store
+   - Uploads the photo via `ScanRemoteDataSource.uploadPhoto(sesionId, imageUri)`:
+     - Reads file via new `File` API (`new File(uri)` → `.info()` + `.bytes()`)
+     - Uploads binary to Supabase Storage bucket `sesion-imagenes` at `{sesionId}/{uuid}.jpg`
+     - Gets public URL, inserts into `public.imagenes_sesion` (`sesion_id`, `url_imagen`, `nombre_archivo`, `formato`, `peso_kb`)
+     - Fire-and-forget POST to central API `/scan` using `fetch()` (multipart/form-data with fields `file` + `sesion_id`, JWT Bearer header)
+4. **Success** — navigates to SuccessScreen showing the session ID.
+
+Each photo sent gets its own new session ID — sessions are created at upload time, not when opening the camera.
 
 ## Database tables
 
