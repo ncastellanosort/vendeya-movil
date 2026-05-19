@@ -1,6 +1,6 @@
 import { File } from 'expo-file-system';
 import { supabase } from '../../core/supabase/supabaseClient';
-import { SCAN_API_URL } from '../../core/constants/api';
+import { SCAN_API_URL, SCAN_HEALTH_URL } from '../../core/constants/api';
 import type { ScanResponseDto } from '../dtos/ScanResponseDto';
 import * as Crypto from 'expo-crypto';
 import { ScanRejectedError } from '../../domain/ScanRejectedError';
@@ -46,7 +46,37 @@ export class ScanRemoteDataSource {
 
     if (insertError) throw new Error(`Error al guardar registro: ${insertError.message}`);
 
-    // 5. Notify central API
+    // 5. Health check before notifying central API
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const healthResponse = await fetch(SCAN_HEALTH_URL, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!healthResponse.ok) {
+        throw new Error(
+          `Health check failed with status ${healthResponse.status}`,
+        );
+      }
+
+      const healthBody = await healthResponse.json();
+      if (healthBody?.status !== 'ok') {
+        throw new Error('El servicio de procesamiento no está disponible.');
+      }
+    } catch (error) {
+      if (error instanceof ScanRejectedError) throw error;
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('El servicio de procesamiento no responde. Intente de nuevo.');
+      }
+      throw new Error('El servicio de procesamiento no está disponible. Intente de nuevo.');
+    }
+
+    // 6. Notify central API
     try {
       const { data } = await supabase.auth.getSession();
       const jwtToken = data.session?.access_token;
